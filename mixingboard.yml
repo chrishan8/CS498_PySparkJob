@@ -1,0 +1,17 @@
+SERVICES:
+    shark:
+        "localhost:32123":
+            host: localhost
+            port: 32123
+    job:
+        "54.187.11.48:1989":
+            host: 54.187.11.48
+            port: 1989
+    jaunt:
+        "localhost:9876":
+            host: localhost
+            port: 9876
+    redshirt:
+        "localhost:2364":
+            host: localhost
+            port: 2364
