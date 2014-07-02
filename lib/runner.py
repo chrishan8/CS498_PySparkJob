@@ -28,7 +28,8 @@ from receiver import EventBroadcastReceiver
 
 
 # import pyspark junk (REQUIRES SPARK TO BE ON SYSPATH)
-from pyspark import SparkFiles, SparkConf
+from pyspark import SparkFiles
+from pyshark import SharkConf
 from sparkler import SparklerContext
 
 
@@ -55,7 +56,7 @@ class JobRunner:
 
     MAX_FILE_SIZE = 1024*1024*16 # don't write out results files larger than 16 MBs
 
-    def __init__(self, account, master, uploadFolder, iamUsername, 
+    def __init__(self, account, master, uploadFolder, iamUsername,
                 accessKeyId, accessKeySecret, conf={}):
         """
         Initializes a job runner
@@ -65,8 +66,7 @@ class JobRunner:
             conf: allow you to set configuration variables on a spark context
         """
 
-        self.account = account 
-        self.bucket = mixingboard.getConf("s3_bucket")
+        self.account = account
         self.region = mixingboard.REGION
         self.master = master
         self.conf = conf
@@ -121,18 +121,18 @@ class JobRunner:
         Run a sql query and wait for the result
 
         Params:
-            sql: a sql query 
+            sql: a sql query
         Returns:
             the result of running a job
         """
 
-        result = self.context.hql(sql).collect()
+        result = [row.split('\t') for row in self.context.sql(sql)]
 
         return result
 
 
     def _parseSQL(self, sql):
-        
+
         # if we have multiple queries, break them apart
         queries = []
         buff = ""
@@ -185,7 +185,7 @@ class JobRunner:
         Run a job
 
         Params:
-            sql: a sql query 
+            sql: a sql query
         Returns:
             a handle for retrieveing future information about a job
         """
@@ -208,10 +208,10 @@ class JobRunner:
             )
 
             self._makeHistory(
-                self.account, 
-                options.get('user'), 
-                'job_start', 
-                jobHandle=handle, 
+                self.account,
+                options.get('user'),
+                'job_start',
+                jobHandle=handle,
                 data={ "jobName": options.get("jobName") },
                 jobType="sql"
             )
@@ -238,27 +238,27 @@ class JobRunner:
 
                         try:
                             # TODO use hiveContext stuff and saveAsTextFile
-                            self.context.hql("""
+                            self.context.sql("""
                                 CREATE TABLE `__%s`
                                 ROW FORMAT DELIMITED
                                 FIELDS TERMINATED BY '\t'
-                                STORED AS TEXTFILE 
-                                LOCATION '%s' 
+                                STORED AS TEXTFILE
+                                LOCATION '%s'
                                 AS %s
                             """ % (
                                 handle,
                                 outputDir,
                                 sql
                             ))
-                            columns, cached = processFormattedTableDescription(self.context.hql('DESC FORMATTED `__%s`' % handle))
-                            self.context.hql("ALTER TABLE `__%s` SET TBLPROPERTIES ('EXTERNAL'='TRUE')" % handle)
-                            self.context.hql("DROP TABLE `__%s`" % handle)
+                            columns, cached = processFormattedTableDescription([row.split('\t') for row in self.context.sql('DESC FORMATTED `__%s`' % handle)])
+                            self.context.sql("ALTER TABLE `__%s` SET TBLPROPERTIES ('EXTERNAL'='TRUE')" % handle)
+                            self.context.sql("DROP TABLE `__%s`" % handle)
                         except:
-                            queryResult = self.context.hql(sql).collect()
+                            queryResult = [row.split('\t') for row in self.context.sql(sql)]
 
                     else:
 
-                        self.context.hql(sql)
+                        self.context.sql(sql)
 
                 result = {
                     "success": True,
@@ -290,10 +290,10 @@ class JobRunner:
             self._exportResults(handle, result)
 
             self._makeHistory(
-                self.account, 
-                options.get('user'), 
-                'job_complete', 
-                jobHandle=handle, 
+                self.account,
+                options.get('user'),
+                'job_complete',
+                jobHandle=handle,
                 data={ "jobName": options.get("jobName") },
                 jobType="sql"
             )
@@ -351,7 +351,7 @@ class JobRunner:
 
         # TODO make region configurable
         s3Conn = boto.s3.connect_to_region(self.region, aws_access_key_id=self.accessKeyId, aws_secret_access_key=self.accessKeySecret)
-        bucket = s3Conn.get_bucket(self.bucket, validate=False)
+        bucket = s3Conn.get_bucket('quarry-data-%s' % self.region, validate=False)
         resultsKey = "tmp/%s/spark/%s" % (
             self.iamUsername,
             handle
@@ -381,10 +381,10 @@ class JobRunner:
             self.handlesLock.release()
 
             self._makeHistory(
-                self.account, 
-                options.get('user'), 
-                'job_start', 
-                jobHandle=handle, 
+                self.account,
+                options.get('user'),
+                'job_start',
+                jobHandle=handle,
                 data={ "jobName": options.get("jobName") },
                 jobType=options.get("jobType","spark")
             )
@@ -436,10 +436,10 @@ class JobRunner:
             self._exportResults(handle, result)
 
             self._makeHistory(
-                self.account, 
-                options.get('user'), 
-                'job_complete', 
-                jobHandle=handle, 
+                self.account,
+                options.get('user'),
+                'job_complete',
+                jobHandle=handle,
                 data={ "jobName": options.get("jobName") },
                 jobType=options.get("jobType","spark")
             )
@@ -638,7 +638,7 @@ class JobRunner:
 
     def createContext(self):
 
-        conf = SparkConf()
+        conf = SharkConf()
         if self.conf:
             for key, value in self.conf.items():
                 conf.set(key, value)
@@ -654,7 +654,7 @@ class JobRunner:
         conf.set("spark.eventBroadcast.remotePort", self.receiver.port)
 
         conf.set("spark.scheduler.mode", "FAIR")
-        # TODO add fair scheduling weighted pool support 
+        # TODO add fair scheduling weighted pool support
 
         appName = uuid.uuid4().bytes.encode("base64")[:21].translate(None, "/+")
         conf.setAppName(appName)
@@ -664,10 +664,10 @@ class JobRunner:
         conf.set("spark.scheduler.allocation.file", fairSchedulerFile)
 
         self.context = SparklerContext(conf=conf, accessKeyId=self.accessKeyId, accessKeySecret=self.accessKeySecret,
-                                       iamUsername=self.iamUsername, bucket=self.bucket)
+                                       iamUsername=self.iamUsername, bucket='quarry-data-%s' % self.region)
 
         # add pyspark home to the python path
         self.context.environment["PYTHONPATH"] = ":%s:" % os.path.join(os.environ["SPARK_HOME"], "python")
 
         # warm up the object store
-        self.context.hql("SHOW TABLES").collect()
+        self.context.sql("SHOW TABLES")

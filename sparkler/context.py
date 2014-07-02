@@ -1,7 +1,7 @@
-from pyspark import SparkContext
+from pyshark import SharkContext
 from pyspark.sql import HiveContext
 
-class SparklerContext(SparkContext):
+class SparklerContext(SharkContext):
 
     def __init__(self, *args, **kwargs):
 
@@ -31,10 +31,10 @@ class SparklerContext(SparkContext):
 
     def dataset(self, name, limit=None):
 
-        if limit is None and self._conf.get("sparkler.test.rows"):       
+        if limit is None and self._conf.get("sparkler.test.rows"):
             limit =  self._conf.get("sparkler.test.rows")
             print "LIMIT: %s" % limit
-            
+
         rddQuery = "SELECT * FROM %s" % name
         if limit:
             rddQuery += " LIMIT %s" % limit
