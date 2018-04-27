@@ -10,7 +10,7 @@ SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 BUCKET_NAME = "cs498mc"
 KEY_NAME = "tweets.json"
 
-conf = SparkConf().setMaster("local").setAppName("TotalPositiveTest").set("spark.jars", "{}/*jar".format(os.path.join(os.path.dirname(__file__), '../jars'))).set("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+conf = SparkConf().setMaster("local").setAppName("TotalPositiveTest").set("spark.jars", "{}/jars/*.jar".format(os.path.dirname(__file__))).set("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
 
 sc = SparkContext(conf = conf)
 sqlContext = SQLContext(sc)
