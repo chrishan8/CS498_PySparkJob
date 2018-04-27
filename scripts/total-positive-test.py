@@ -10,7 +10,7 @@ SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 BUCKET_NAME = "cs498mc"
 KEY_NAME = "tweets.json"
 
-conf = SparkConf().setMaster("local").setAppName("TotalPositiveTest").set("spark.jars", "{}/jars/*.jar".format(os.path.dirname(__file__))).set("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+conf = SparkConf().setMaster("local").setAppName("TotalPositiveTest").set("spark.jars", "{},{},{}".format(os.path.join(os.path.dirname(__file__), 'jars/aws-java-sdk-1.7.4.jar'), os.path.join(os.path.dirname(__file__), 'jars/hadoop-aws-2.7.3.jar'), os.path.join(os.path.dirname(__file__), 'jars/joda-time-2.9.3.jar'))).set("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem").set("spark.hadoop.fs.s3a.access.key", ACCESS_KEY).set("spark.hadoop.fs.s3a.secret.key", SECRET_KEY)
 
 sc = SparkContext(conf = conf)
 sqlContext = SQLContext(sc)
@@ -18,7 +18,7 @@ sqlContext = SQLContext(sc)
 # key = boto.connect_s3().get_bucket("cs498mc").get_key("tweets.json")
 
 def main():
-    tweets = sqlContext.read.json("s3a://{}:{}@{}/{}".format(ACCESS_KEY, SECRET_KEY, BUCKET_NAME, KEY_NAME))
+    tweets = sqlContext.read.json("s3a://{}/{}".format(BUCKET_NAME, KEY_NAME))
     tweets.printSchema()
 
 if __name__ == "__main__":
