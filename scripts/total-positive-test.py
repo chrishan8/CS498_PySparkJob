@@ -12,8 +12,8 @@ KEY_NAME = "tweets2.json"
 spark = SparkSession.builder.master("local[*]").appName("TotalPositiveTest").config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem").config("spark.hadoop.fs.s3a.access.key", ACCESS_KEY).config("spark.hadoop.fs.s3a.secret.key", SECRET_KEY).getOrCreate()
 
 def main():
-    # tweets = spark.read.json("s3a://{}/{}".format(BUCKET_NAME, KEY_NAME))
-    tweetsDF = spark.read.json(os.path.join(os.path.dirname(__file__), '../data/tweets2.json'))
+    tweetsDF = spark.read.json("s3a://{}/{}".format(BUCKET_NAME, KEY_NAME))
+    # tweetsDF = spark.read.json(os.path.join(os.path.dirname(__file__), '../data/cleaned.json'))
     tweetsDF.createOrReplaceTempView("tweets")
     sentimentDF = spark.sql("SELECT tone.sentiment FROM tweets")
     totalSentiments = sentimentDF.rdd.map(lambda x: (x.sentiment, 1)).reduceByKey(lambda x, y: x + y)
