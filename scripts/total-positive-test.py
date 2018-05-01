@@ -1,25 +1,24 @@
 from dotenv import load_dotenv
 load_dotenv()
 import os
-from pyspark import SparkConf, SparkContext
-from pyspark.sql import SQLContext
-import smart_open
+from pyspark import SparkConf
+from pyspark.sql import SQLContext, SparkSession
 
 ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID")
 SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 BUCKET_NAME = "cs498mc"
-KEY_NAME = "tweets.json"
+KEY_NAME = "tweets2.json"
 
-conf = SparkConf().setMaster("local").setAppName("TotalPositiveTest").set("spark.jars", "{},{},{}".format(os.path.join(os.path.dirname(__file__), 'jars/aws-java-sdk-1.7.4.jar'), os.path.join(os.path.dirname(__file__), 'jars/hadoop-aws-2.7.3.jar'), os.path.join(os.path.dirname(__file__), 'jars/joda-time-2.9.3.jar'))).set("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem").set("spark.hadoop.fs.s3a.access.key", ACCESS_KEY).set("spark.hadoop.fs.s3a.secret.key", SECRET_KEY)
-
-sc = SparkContext(conf = conf)
-sqlContext = SQLContext(sc)
-
-# key = boto.connect_s3().get_bucket("cs498mc").get_key("tweets.json")
+spark = SparkSession.builder.master("local[*]").appName("TotalPositiveTest").config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem").config("spark.hadoop.fs.s3a.access.key", ACCESS_KEY).config("spark.hadoop.fs.s3a.secret.key", SECRET_KEY).getOrCreate()
 
 def main():
-    tweets = sqlContext.read.json("s3a://{}/{}".format(BUCKET_NAME, KEY_NAME))
-    tweets.printSchema()
+    # tweets = spark.read.json("s3a://{}/{}".format(BUCKET_NAME, KEY_NAME))
+    tweetsDF = spark.read.json(os.path.join(os.path.dirname(__file__), '../data/tweets2.json'))
+    tweetsDF.createOrReplaceTempView("tweets")
+    sentimentDF = spark.sql("SELECT tone.sentiment FROM tweets")
+    totalSentiments = sentimentDF.rdd.map(lambda x: (x.sentiment, 1)).reduceByKey(lambda x, y: x + y)
+    for result in totalSentiments.collect():
+        print "Sentiment: %s, Total: %s" % (result[0], result[1])
 
 if __name__ == "__main__":
     main()
