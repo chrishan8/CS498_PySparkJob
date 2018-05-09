@@ -1,26 +1,16 @@
-import io.archivesunleashed.spark.matchbox._
-import io.archivesunleashed.spark.matchbox.TweetUtils._
-import io.archivesunleashed.spark.rdd.RecordRDD._
+import pyspark import SparkConf, SparkContext
+
+conf = SparkConf().setMaster("local").setAppName("PopularTweets")
+
 
 ## Load tweets from HDFS
-tweets = ftweetsDF = spark.read.json(os.path.join(os.path.dirname(__file__)
+tweetsDF = spark.read.json(os.path.join(os.path.dirname(__file__), '../data/cleaned.json'))
+tweetsDF.createOrReplaceTempView("tweets")
+hashTags= spark.sql("SELECT hashtags from tweets")
+hashTags_rev = hashTags.map(lambda x: (x.split()[1]), 1)
+hashTagsCounts= hashTags_rev.reduceByKey(lambda x, y: x+y)
+flipped = hashTagsCounts.map(lambda xy: (xy[1], xy[0]))
 
-## Count them
-tweets.count()
-
-## Extract some fields
-val r = tweets.map(tweet => (tweet.id, tweet.createdAt, tweet.username, tweet.text, tweet.lang,
-                             tweet.isVerifiedUser, tweet.followerCount, tweet.friendCount))
-
-##  Take a sample of 10 on console
-r.take(10)
-
-## Count the number of hashtags
-
-val hashtags = tweets.map(tweet => tweet.text)
-                     .filter(text => text != null)
-                     .flatMap(text => {"""#[^ ]+""".r.findAllIn(text).toList})
-                     .countItems()
-
-hashtags.take(10)
-
+sortedHashTags = flipped.sortByKey()
+for result in results:
+    print(result)
